@@ -12,7 +12,7 @@
     if ([options objectForKey:@"message"] && [options objectForKey:@"message"] != [NSNull null]) {
 
         NSString *message = [RCTConvert NSString:options[@"message"]];
-        NSString *recipient = [RCTConvert NSString:options[@"recipient"]];
+//        NSString *recipient = [RCTConvert NSString:options[@"recipient"]];
         
         if (![MFMessageComposeViewController canSendText]) {
             NSString *errorMessage = @"Sms services is not available.";
@@ -25,20 +25,40 @@
         MFMessageComposeViewController *mc = [[MFMessageComposeViewController alloc] init];
         mc.messageComposeDelegate = self;
 
-        NSMutableArray *recipients = [[NSMutableArray alloc] init];
-        if (![recipient  isEqual: @""]) {
-            [recipients addObject:recipient];
-        }
-        mc.recipients = recipients;
+        // @NOTE for pengu, we never send recipients, we let the person choose.
+//        NSMutableArray *recipients = [[NSMutableArray alloc] init];
+//        if (![recipient  isEqual: @""]) {
+//            [recipients addObject:recipient];
+//        }
+//        mc.recipients = recipients;
         mc.body = message;
         
         NSURL *URL = [RCTConvert NSURL:options[@"url"]];
         if (URL) {
             BOOL isDataScheme = [URL.scheme.lowercaseString isEqualToString:@"data"];
     
+            // attach video to messages
+            if (URL.fileURL) {
+                NSError *error;
+                NSData *data = [NSData dataWithContentsOfURL:URL
+                                                     options:(NSDataReadingOptions)0
+                                                       error:&error];
+                if (!data) {
+                    reject(@"com.rnshare", @"No data", error);
+                    return;
+                }
+                NSString *filename = @"file";
+                if ([options objectForKey:@"filename"]) {
+                    filename = [RCTConvert NSString:options[@"filename"]];
+                }
+                
+                NSString *ext = [[URL.absoluteString componentsSeparatedByString:@"."] lastObject];
+                filename = [filename stringByAppendingString: [@"." stringByAppendingString:ext]];
+                [mc addAttachmentData:data typeIdentifier:@"public.video" filename:filename];
+            }
             // Only handling data scheme urls here. To handle the case of URL.isFileURL
             // one could add a case similar to the process in EmailShare.m
-            if (isDataScheme) {
+            else if (isDataScheme) {
                 NSError *error;
                 NSData *data = [NSData dataWithContentsOfURL:URL
                                                      options:(NSDataReadingOptions)0
